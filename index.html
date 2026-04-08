@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>1800-TYPER</title>
+<title>1-800Typer</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.7.4/socket.io.min.js"></script>
 <style>
 @import url('https://fonts.googleapis.com/css2?family=DM+Mono:ital,wght@0,300;0,400;0,500;1,300&family=Syne:wght@400;700;800&display=swap');
@@ -130,16 +130,18 @@ header {
 .typing-card.err { animation: errShake 0.22s ease; border-color: var(--accent); }
 @keyframes errShake { 0%,100%{transform:translateX(0)} 25%{transform:translateX(-4px)} 75%{transform:translateX(4px)} }
 
-#text-display {
-  font-family: var(--mono); font-size: 1.2rem; line-height: 2.1;
+#text-display, #race-text-display {
+  font-family: var(--mono); font-size: 1.15rem; line-height: 2rem;
   letter-spacing: 0.02em; user-select: none;
+  white-space: normal; word-break: keep-all; overflow-wrap: normal;
+  display: block; max-height: 6.2rem; overflow: hidden;
 }
 .char { position: relative; transition: color 0.04s; }
 .char.correct { color: var(--green); }
 .char.wrong { color: var(--accent); background: var(--accent-soft); border-radius: 2px; }
 .char.pending { color: var(--ink-ghost); }
 .char.cursor::before {
-  content: ''; position: absolute; left: -1px; top: 4px; bottom: 4px;
+  content: ''; position: absolute; left: -1px; top: 15%; bottom: 15%;
   width: 2px; background: var(--accent); border-radius: 1px;
   animation: blink 1s step-end infinite;
 }
@@ -433,7 +435,7 @@ header {
 <body>
 
 <header>
-  <div class="logo">1800<span>-TYPER</span></div>
+  <div class="logo">1-800<span>Typer</span></div>
   <div class="header-right">
     <div class="tag">Built with <strong>Claude AI</strong></div>
   </div>
@@ -649,7 +651,7 @@ header {
 // ——— CONFIG — UPDATE THIS AFTER DEPLOYING YOUR SERVER ———
 const SERVER_URL = window.location.hostname === 'localhost'
   ? 'http://localhost:3001'
-  : '1800-typer-production.up.railway.app'; // <-- replace after deploy
+  : 'https://1800-typer-production.up.railway.app';
 
 // ——— Word banks ———
 const WORD_BANK = `the be to of and a in that have it for not on with he as you do at this but his by from they we say her she or an will my one all would there their what so up out if about who get which go me when make can like time no just him know take people into year your good some could them see other than then now look only come its over think also back after use two how our work first well way even new want because any these give day most us`.split(' ');
@@ -711,12 +713,13 @@ function buildDisplay(text) {
   for (let i = 0; i < text.length; i++) {
     const s = document.createElement('span');
     s.className = 'char pending' + (i === 0 ? ' cursor' : '');
-    s.textContent = text[i] === ' ' ? '\u00a0' : text[i];
+    s.textContent = text[i];
     s.dataset.char = text[i];
     d.appendChild(s); chars.push(s);
   }
   buildDots(text, 'progress-row');
 }
+
 
 function buildDots(text, rowId) {
   const row = document.getElementById(rowId);
@@ -775,7 +778,7 @@ document.getElementById('type-input').addEventListener('keydown', (e) => {
       currentIdx--;
       chars[currentIdx].className = 'char pending cursor';
       if (chars[currentIdx + 1]) chars[currentIdx + 1].classList.remove('cursor');
-    }
+        }
     updateLiveStats(); return;
   }
   if (e.key.length !== 1) return;
@@ -1147,7 +1150,7 @@ function buildRaceDisplay(text) {
   for (let i = 0; i < text.length; i++) {
     const s = document.createElement('span');
     s.className = 'char pending' + (i === 0 ? ' cursor' : '');
-    s.textContent = text[i] === ' ' ? '\u00a0' : text[i];
+    s.textContent = text[i];
     s.dataset.char = text[i];
     d.appendChild(s); raceChars.push(s);
   }
