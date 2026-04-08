@@ -105,6 +105,7 @@ function getLobbyState(lobby) {
     host: lobby.host,
     status: lobby.status,
     mode: lobby.mode,
+    duration: lobby.duration,
     players: Object.values(lobby.players).map(p => ({
       id: p.id,
       name: p.name,
@@ -124,7 +125,7 @@ io.on('connection', (socket) => {
   console.log('connected:', socket.id);
 
   // Create lobby
-  socket.on('create_lobby', ({ name, mode }) => {
+  socket.on('create_lobby', ({ name, mode, duration }) => {
     let code;
     do { code = makeLobbyCode(); } while (lobbies[code]);
 
@@ -133,11 +134,13 @@ io.on('connection', (socket) => {
       host: socket.id,
       status: 'waiting', // waiting | countdown | racing | finished
       mode: mode || 'words',
+      duration: [15,30,60].includes(duration) ? duration : 30,
       text: '',
       players: {},
       countdown: null,
       startedAt: null,
       countdownTimer: null,
+      raceEndTimer: null,
       finishCount: 0
     };
 
@@ -207,8 +210,18 @@ io.on('connection', (socket) => {
         clearInterval(cd);
         lobby.status = 'racing';
         lobby.startedAt = Date.now();
-        io.to(code).emit('race_start', { startedAt: lobby.startedAt });
+        io.to(code).emit('race_start', { startedAt: lobby.startedAt, duration: lobby.duration });
         io.to(code).emit('lobby_update', getLobbyState(lobby));
+        // Auto-end race when time runs out
+        lobby.raceEndTimer = setTimeout(() => {
+          if (lobby.status !== 'racing') return;
+          lobby.status = 'finished';
+          // Mark any unfinished players as DNF
+          Object.values(lobby.players).forEach(p => {
+            if (!p.finished) { p.finished = true; p.rank = null; p.wpm = p.wpm || 0; }
+          });
+          io.to(code).emit('race_over', { players: getLobbyState(lobby).players });
+        }, lobby.duration * 1000 + 500);
       }
     }, 1000);
     lobby.countdownTimer = cd;
@@ -261,6 +274,7 @@ io.on('connection', (socket) => {
   socket.on('return_to_lobby', ({ code }) => {
     const lobby = lobbies[code];
     if (!lobby || lobby.host !== socket.id) return;
+    if (lobby.raceEndTimer) clearTimeout(lobby.raceEndTimer);
     lobby.status = 'waiting';
     lobby.countdown = null;
     Object.values(lobby.players).forEach(p => {
