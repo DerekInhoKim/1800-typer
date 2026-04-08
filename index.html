@@ -1,0 +1,1263 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>1800-TYPER</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.7.4/socket.io.min.js"></script>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=DM+Mono:ital,wght@0,300;0,400;0,500;1,300&family=Syne:wght@400;700;800&display=swap');
+
+:root {
+  --bg: #FEF2E5;
+  --surface: #fdf5ec;
+  --border: #f0d9bf;
+  --ink: #1a1208;
+  --ink-dim: #9a7a55;
+  --ink-ghost: #d4b896;
+  --accent: #FA8200;
+  --accent-soft: rgba(250,130,0,0.12);
+  --green: #11BA65;
+  --green-soft: rgba(17,186,101,0.12);
+  --amber: #e07200;
+  --blue: #307CFF;
+  --purple: #9372FF;
+  --mono: 'DM Mono', monospace;
+  --sans: 'Syne', sans-serif;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { height: 100%; background: var(--bg); color: var(--ink); font-family: var(--mono); overflow-x: hidden; }
+
+body::after {
+  content: '';
+  position: fixed; inset: 0;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.04'/%3E%3C/svg%3E");
+  pointer-events: none; z-index: 9999; opacity: 0.4;
+}
+
+/* ——— Header ——— */
+header {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 20px 40px 16px;
+  border-bottom: 1px solid var(--border);
+}
+
+.logo {
+  font-family: var(--sans); font-size: 1.4rem; font-weight: 800;
+  letter-spacing: -0.02em; color: var(--ink);
+}
+.logo span { color: var(--accent); }
+
+.header-right { display: flex; align-items: center; gap: 12px; }
+
+.tag {
+  font-size: 0.62rem; color: var(--ink-dim);
+  letter-spacing: 0.14em; text-transform: uppercase;
+  border: 1px solid var(--border); padding: 4px 10px; border-radius: 100px;
+}
+.tag strong { color: var(--accent); font-weight: 500; }
+
+/* ——— Nav tabs ——— */
+.nav-bar {
+  display: flex; align-items: center; gap: 2px;
+  padding: 14px 40px 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.nav-tab {
+  font-family: var(--mono); font-size: 0.68rem; letter-spacing: 0.1em;
+  text-transform: uppercase; padding: 8px 20px 10px;
+  border: none; background: transparent; color: var(--ink-dim);
+  cursor: pointer; border-bottom: 2px solid transparent;
+  transition: all 0.15s; margin-bottom: -1px;
+}
+.nav-tab:hover { color: var(--ink); }
+.nav-tab.active { color: var(--accent); border-bottom-color: var(--accent); }
+
+/* ——— Screens ——— */
+.screen { display: none; }
+.screen.active { display: block; }
+
+/* ——— SOLO ——— */
+#screen-solo {
+  max-width: 860px; margin: 0 auto; padding: 32px 40px;
+}
+
+.options-row {
+  display: flex; align-items: center; gap: 6px;
+  margin-bottom: 28px; flex-wrap: wrap;
+}
+.opt-label { font-size: 0.62rem; color: var(--ink-dim); letter-spacing: 0.12em; text-transform: uppercase; margin-right: 2px; }
+.opt-btn {
+  font-family: var(--mono); font-size: 0.68rem; padding: 5px 13px;
+  border: 1px solid var(--border); border-radius: 100px;
+  background: transparent; color: var(--ink-dim); cursor: pointer; transition: all 0.15s;
+}
+.opt-btn:hover { border-color: var(--ink-dim); color: var(--ink); }
+.opt-btn.active { background: var(--accent); color: #fff; border-color: var(--accent); }
+.opt-sep { width: 1px; height: 14px; background: var(--border); margin: 0 4px; }
+
+.live-stats {
+  display: flex; gap: 28px; margin-bottom: 24px; align-items: flex-end; flex-wrap: wrap;
+}
+.live-stat { display: flex; flex-direction: column; }
+.live-stat-val {
+  font-family: var(--sans); font-size: 2.2rem; font-weight: 800;
+  line-height: 1; color: var(--ink); letter-spacing: -0.03em;
+}
+.live-stat-val.accent { color: var(--accent); }
+.live-stat-label { font-size: 0.58rem; letter-spacing: 0.14em; text-transform: uppercase; color: var(--ink-dim); margin-top: 3px; }
+
+.timer-track { flex: 1; min-width: 120px; display: flex; flex-direction: column; gap: 5px; padding-bottom: 4px; }
+.timer-nums { display: flex; justify-content: space-between; font-size: 0.62rem; color: var(--ink-dim); letter-spacing: 0.1em; }
+.timer-bg { height: 3px; background: var(--border); border-radius: 2px; overflow: hidden; }
+.timer-fill { height: 100%; background: var(--accent); border-radius: 2px; transition: width 1s linear; width: 100%; }
+
+.progress-row { display: flex; gap: 3px; flex-wrap: wrap; width: 100%; margin-bottom: 10px; }
+.word-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--border); transition: background 0.15s; }
+.word-dot.done { background: var(--green); }
+.word-dot.current { background: var(--accent); }
+
+/* Typing card */
+.typing-card {
+  width: 100%; background: var(--surface);
+  border: 1px solid var(--border); border-radius: 8px;
+  padding: 28px 32px; margin-bottom: 16px; position: relative;
+  cursor: text; transition: border-color 0.15s;
+}
+.typing-card:focus-within { border-color: var(--ink-dim); }
+.typing-card.err { animation: errShake 0.22s ease; border-color: var(--accent); }
+@keyframes errShake { 0%,100%{transform:translateX(0)} 25%{transform:translateX(-4px)} 75%{transform:translateX(4px)} }
+
+#text-display {
+  font-family: var(--mono); font-size: 1.2rem; line-height: 2.1;
+  letter-spacing: 0.02em; user-select: none;
+}
+.char { position: relative; transition: color 0.04s; }
+.char.correct { color: var(--green); }
+.char.wrong { color: var(--accent); background: var(--accent-soft); border-radius: 2px; }
+.char.pending { color: var(--ink-ghost); }
+.char.cursor::before {
+  content: ''; position: absolute; left: -1px; top: 4px; bottom: 4px;
+  width: 2px; background: var(--accent); border-radius: 1px;
+  animation: blink 1s step-end infinite;
+}
+@keyframes blink { 0%,100%{opacity:1} 50%{opacity:0} }
+
+#type-input { position: absolute; opacity: 0; pointer-events: none; top: 0; left: 0; width: 1px; height: 1px; }
+
+.focus-hint {
+  position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
+  background: rgba(245,240,232,0.9); border-radius: 8px;
+  font-size: 0.75rem; color: var(--ink-dim); letter-spacing: 0.1em; text-transform: uppercase;
+  cursor: pointer; backdrop-filter: blur(2px); flex-direction: column; gap: 10px;
+  transition: opacity 0.2s;
+}
+.focus-hint.hidden { opacity: 0; pointer-events: none; }
+.focus-key {
+  background: var(--bg); border: 1px solid var(--border);
+  border-radius: 4px; padding: 6px 18px;
+  font-size: 0.72rem; color: var(--ink);
+  box-shadow: 0 2px 0 var(--border);
+}
+
+.controls { display: flex; align-items: center; gap: 12px; }
+.btn-restart {
+  font-family: var(--mono); font-size: 0.68rem; letter-spacing: 0.1em;
+  text-transform: uppercase; padding: 9px 20px;
+  border: 1px solid var(--border); border-radius: 100px;
+  background: transparent; color: var(--ink-dim); cursor: pointer;
+  transition: all 0.15s; display: flex; align-items: center; gap: 7px;
+}
+.btn-restart:hover { background: var(--accent); color: #fff; border-color: var(--accent); }
+.hint-text { font-size: 0.62rem; color: var(--ink-ghost); letter-spacing: 0.08em; }
+
+/* History */
+.history-section { width: 100%; margin-top: 20px; }
+.section-label { font-size: 0.62rem; letter-spacing: 0.14em; text-transform: uppercase; color: var(--ink-dim); margin-bottom: 10px; padding-bottom: 8px; border-bottom: 1px solid var(--border); }
+.history-table { width: 100%; border-collapse: collapse; font-size: 0.73rem; }
+.history-table th { text-align: left; font-size: 0.58rem; letter-spacing: 0.12em; text-transform: uppercase; color: var(--ink-dim); padding: 6px 8px; border-bottom: 1px solid var(--border); font-weight: 400; }
+.history-table td { padding: 8px; border-bottom: 1px solid var(--border); color: var(--ink); }
+.history-table td:first-child { color: var(--ink-dim); }
+.history-table .best-row td { color: var(--accent); }
+
+/* ——— RESULTS OVERLAY ——— */
+#results-overlay {
+  position: fixed; inset: 0; background: rgba(245,240,232,0.94);
+  backdrop-filter: blur(6px); display: flex; flex-direction: column;
+  align-items: center; justify-content: center; z-index: 800; gap: 0;
+  transition: opacity 0.25s;
+}
+#results-overlay.hidden { opacity: 0; pointer-events: none; }
+.results-head { font-family: var(--sans); font-size: clamp(2.2rem,5vw,4rem); font-weight: 800; letter-spacing: -0.04em; margin-bottom: 4px; }
+.results-head span { color: var(--accent); }
+.results-sub { font-size: 0.65rem; color: var(--ink-dim); letter-spacing: 0.16em; text-transform: uppercase; margin-bottom: 36px; }
+
+.results-grid {
+  display: grid; grid-template-columns: repeat(4, 1fr); gap: 1px;
+  background: var(--border); border: 1px solid var(--border);
+  border-radius: 8px; overflow: hidden; margin-bottom: 28px;
+  width: min(660px, 90vw);
+}
+.result-cell { background: var(--surface); padding: 22px 24px; }
+.result-val { font-family: var(--sans); font-size: 2rem; font-weight: 800; letter-spacing: -0.03em; color: var(--ink); line-height: 1; margin-bottom: 5px; }
+.result-val.good { color: var(--green); }
+.result-val.warn { color: var(--amber); }
+.result-val.bad { color: var(--accent); }
+.result-lbl { font-size: 0.56rem; letter-spacing: 0.14em; text-transform: uppercase; color: var(--ink-dim); }
+
+.wpm-grade { font-family: var(--sans); font-size: 0.78rem; font-weight: 700; color: var(--ink-dim); margin-bottom: 20px; text-align: center; }
+.wpm-grade span { color: var(--accent); }
+
+/* Name prompt for leaderboard */
+.lb-prompt { display: flex; gap: 8px; align-items: center; margin-bottom: 20px; }
+.lb-input {
+  font-family: var(--mono); font-size: 0.8rem; padding: 9px 14px;
+  border: 1px solid var(--border); border-radius: 100px;
+  background: var(--bg); color: var(--ink); outline: none; width: 180px;
+  transition: border-color 0.15s;
+}
+.lb-input:focus { border-color: var(--ink-dim); }
+.lb-input::placeholder { color: var(--ink-ghost); }
+
+.results-actions { display: flex; gap: 10px; }
+.btn-action {
+  font-family: var(--mono); font-size: 0.68rem; letter-spacing: 0.1em;
+  text-transform: uppercase; padding: 11px 24px; border-radius: 100px; cursor: pointer; transition: all 0.15s;
+}
+.btn-action.primary { background: var(--accent); color: #fff; border: 1px solid var(--accent); }
+.btn-action.primary:hover { background: var(--amber); border-color: var(--amber); }.btn-action.ghost { background: transparent; color: var(--ink-dim); border: 1px solid var(--border); }
+.btn-action.ghost:hover { border-color: var(--ink-dim); color: var(--ink); }
+
+/* ——— LEADERBOARD ——— */
+#screen-lb { max-width: 860px; margin: 0 auto; padding: 32px 40px; }
+
+.lb-header-row { display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 24px; }
+.lb-title { font-family: var(--sans); font-size: 1.8rem; font-weight: 800; letter-spacing: -0.03em; }
+.lb-title span { color: var(--accent); }
+.lb-refresh-btn {
+  font-family: var(--mono); font-size: 0.65rem; letter-spacing: 0.1em; text-transform: uppercase;
+  padding: 7px 16px; border: 1px solid var(--border); border-radius: 100px;
+  background: transparent; color: var(--ink-dim); cursor: pointer; transition: all 0.15s;
+}
+.lb-refresh-btn:hover { background: var(--accent); color: #fff; border-color: var(--accent); }
+
+.lb-table { width: 100%; border-collapse: collapse; }
+.lb-table th {
+  text-align: left; font-size: 0.58rem; letter-spacing: 0.14em; text-transform: uppercase;
+  color: var(--ink-dim); padding: 8px 10px; border-bottom: 1px solid var(--border); font-weight: 400;
+}
+.lb-table td { padding: 11px 10px; border-bottom: 1px solid var(--border); font-size: 0.8rem; }
+.lb-table .rank-col { color: var(--ink-dim); width: 40px; }
+.lb-table .name-col { font-weight: 500; }
+.lb-table .wpm-col { font-family: var(--sans); font-size: 1.1rem; font-weight: 800; color: var(--blue); letter-spacing: -0.02em; }
+.lb-table .acc-col { color: var(--green); }
+.lb-table tr:nth-child(1) td { background: rgba(232,64,28,0.04); }
+.lb-table tr:nth-child(2) td { background: rgba(232,64,28,0.02); }
+.lb-table tr:hover td { background: var(--surface); }
+
+.lb-medal { font-size: 0.9rem; }
+.lb-empty { text-align: center; padding: 48px 0; color: var(--ink-dim); font-size: 0.78rem; letter-spacing: 0.08em; }
+.lb-loading { text-align: center; padding: 48px 0; color: var(--ink-dim); font-size: 0.75rem; letter-spacing: 0.1em; text-transform: uppercase; }
+
+.lb-filter-row { display: flex; gap: 6px; margin-bottom: 16px; }
+
+/* ——— MULTIPLAYER ——— */
+#screen-multi { max-width: 860px; margin: 0 auto; padding: 32px 40px; }
+
+/* Sub-views inside multi */
+.multi-view { display: none; }
+.multi-view.active { display: block; }
+
+/* Lobby join/create */
+.multi-lobby-entry {
+  display: flex; flex-direction: column; align-items: center;
+  gap: 24px; max-width: 480px; margin: 0 auto; padding: 20px 0;
+}
+.multi-lobby-entry h2 { font-family: var(--sans); font-size: 2rem; font-weight: 800; letter-spacing: -0.03em; text-align: center; }
+.multi-lobby-entry h2 span { color: var(--accent); }
+
+.lobby-form {
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: 8px; padding: 28px 32px; width: 100%;
+  display: flex; flex-direction: column; gap: 14px;
+}
+.lobby-form-title { font-size: 0.65rem; letter-spacing: 0.14em; text-transform: uppercase; color: var(--ink-dim); }
+.lobby-input {
+  font-family: var(--mono); font-size: 0.85rem; padding: 11px 16px;
+  border: 1px solid var(--border); border-radius: 6px;
+  background: var(--bg); color: var(--ink); outline: none; width: 100%;
+  transition: border-color 0.15s;
+}
+.lobby-input:focus { border-color: var(--ink); }
+.lobby-input::placeholder { color: var(--ink-ghost); }
+.lobby-input.code-input { text-transform: uppercase; letter-spacing: 0.2em; font-size: 1.1rem; text-align: center; font-weight: 500; }
+.lobby-divider { display: flex; align-items: center; gap: 12px; color: var(--ink-ghost); font-size: 0.65rem; letter-spacing: 0.1em; }
+.lobby-divider::before, .lobby-divider::after { content: ''; flex: 1; height: 1px; background: var(--border); }
+.btn-lobby {
+  font-family: var(--mono); font-size: 0.72rem; letter-spacing: 0.1em; text-transform: uppercase;
+  padding: 12px 24px; border-radius: 6px; cursor: pointer; transition: all 0.15s; width: 100%; border: none;
+}
+.btn-lobby.primary { background: var(--accent); color: #fff; }
+.btn-lobby.primary:hover { background: var(--amber); }
+.btn-lobby.outline { background: transparent; color: var(--ink-dim); border: 1px solid var(--border); }
+.btn-lobby.outline:hover { border-color: var(--ink); color: var(--ink); }
+
+.lobby-error { color: var(--accent); font-size: 0.72rem; letter-spacing: 0.06em; text-align: center; min-height: 18px; }
+
+/* Waiting room */
+.waiting-room { display: flex; flex-direction: column; gap: 20px; }
+.waiting-header { display: flex; align-items: flex-start; justify-content: space-between; flex-wrap: wrap; gap: 12px; }
+.room-code-display { display: flex; flex-direction: column; gap: 4px; }
+.room-code-label { font-size: 0.6rem; letter-spacing: 0.14em; text-transform: uppercase; color: var(--ink-dim); }
+.room-code {
+  font-family: var(--sans); font-size: 2.4rem; font-weight: 800;
+  letter-spacing: 0.1em; color: var(--accent); line-height: 1;
+  cursor: pointer;
+}
+.room-code-hint { font-size: 0.62rem; color: var(--ink-ghost); letter-spacing: 0.06em; }
+.waiting-actions { display: flex; gap: 8px; align-items: flex-start; flex-wrap: wrap; }
+.btn-sm {
+  font-family: var(--mono); font-size: 0.65rem; letter-spacing: 0.1em; text-transform: uppercase;
+  padding: 9px 18px; border-radius: 100px; cursor: pointer; transition: all 0.15s;
+}
+.btn-sm.primary { background: var(--accent); color: #fff; border: 1px solid var(--accent); }
+.btn-sm.primary:hover { background: var(--amber); border-color: var(--amber); }
+.btn-sm.ghost { background: transparent; color: var(--ink-dim); border: 1px solid var(--border); }
+.btn-sm.ghost:hover { border-color: var(--ink-dim); color: var(--ink); }
+
+.player-list {
+  display: flex; flex-direction: column; gap: 8px;
+  background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 16px 20px;
+}
+.player-list-label { font-size: 0.6rem; letter-spacing: 0.14em; text-transform: uppercase; color: var(--ink-dim); margin-bottom: 8px; }
+.player-row {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 8px 0; border-bottom: 1px solid var(--border); font-size: 0.8rem;
+}
+.player-row:last-child { border-bottom: none; padding-bottom: 0; }
+.player-name { display: flex; align-items: center; gap: 8px; }
+.player-badge {
+  font-size: 0.55rem; letter-spacing: 0.1em; text-transform: uppercase;
+  padding: 2px 7px; border-radius: 100px; border: 1px solid var(--border); color: var(--ink-dim);
+}
+.player-badge.host { border-color: var(--accent); color: var(--accent); }
+.player-badge.you { border-color: var(--green); color: var(--green); }
+.waiting-hint { font-size: 0.7rem; color: var(--ink-dim); text-align: center; letter-spacing: 0.06em; }
+
+/* Countdown */
+.countdown-overlay {
+  position: fixed; inset: 0; background: rgba(245,240,232,0.95);
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  z-index: 700; gap: 12px;
+}
+.countdown-overlay.hidden { display: none; }
+.countdown-num {
+  font-family: var(--sans); font-size: clamp(6rem,20vw,12rem); font-weight: 800;
+  letter-spacing: -0.06em; color: var(--accent); line-height: 1;
+  animation: countPop 0.4s cubic-bezier(0.34,1.56,0.64,1);
+}
+@keyframes countPop { 0%{transform:scale(0.4);opacity:0} 100%{transform:scale(1);opacity:1} }
+.countdown-label { font-size: 0.7rem; letter-spacing: 0.2em; text-transform: uppercase; color: var(--ink-dim); }
+
+/* Race view */
+.race-view { display: flex; flex-direction: column; gap: 16px; }
+.race-leaderboard {
+  background: var(--surface); border: 1px solid var(--border); border-radius: 8px;
+  padding: 16px 20px;
+}
+.race-lb-label { font-size: 0.6rem; letter-spacing: 0.14em; text-transform: uppercase; color: var(--ink-dim); margin-bottom: 12px; }
+.racer-row { display: flex; align-items: center; gap: 12px; padding: 6px 0; }
+.racer-name { font-size: 0.78rem; min-width: 100px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.racer-name.you-racer { color: var(--purple); font-weight: 500; }
+.racer-bar-bg { flex: 1; height: 8px; background: var(--border); border-radius: 4px; overflow: hidden; }
+.racer-bar { height: 100%; border-radius: 4px; background: var(--ink-dim); transition: width 0.3s ease; }
+.racer-bar.you-bar { background: var(--purple); }
+.racer-bar.done-bar { background: var(--green); }
+.racer-wpm { font-family: var(--sans); font-size: 0.85rem; font-weight: 700; min-width: 52px; text-align: right; color: var(--ink-dim); }
+
+/* Race results */
+.race-results-overlay {
+  position: fixed; inset: 0; background: rgba(245,240,232,0.96);
+  backdrop-filter: blur(6px); display: flex; flex-direction: column;
+  align-items: center; justify-content: center; z-index: 750; gap: 0;
+  transition: opacity 0.25s;
+}
+.race-results-overlay.hidden { opacity: 0; pointer-events: none; }
+.race-results-head { font-family: var(--sans); font-size: clamp(2rem,5vw,3.5rem); font-weight: 800; letter-spacing: -0.04em; margin-bottom: 4px; }
+.race-results-head span { color: var(--accent); }
+.race-results-sub { font-size: 0.65rem; color: var(--ink-dim); letter-spacing: 0.16em; text-transform: uppercase; margin-bottom: 28px; }
+
+.race-podium {
+  display: flex; flex-direction: column; gap: 1px;
+  background: var(--border); border: 1px solid var(--border);
+  border-radius: 8px; overflow: hidden; width: min(560px, 90vw); margin-bottom: 24px;
+}
+.podium-row {
+  display: grid; grid-template-columns: 40px 1fr 80px 80px 70px;
+  background: var(--surface); padding: 14px 18px; align-items: center; gap: 10px;
+  font-size: 0.8rem;
+}
+.podium-row.you-podium { background: rgba(232,64,28,0.06); }
+.podium-rank { font-family: var(--sans); font-weight: 800; color: var(--ink-dim); }
+.podium-rank.gold { color: var(--amber); }
+.podium-name { font-weight: 500; }
+.podium-wpm { font-family: var(--sans); font-size: 1.1rem; font-weight: 800; color: var(--accent); }
+.podium-acc { color: var(--green); }
+.podium-time { color: var(--ink-dim); font-size: 0.72rem; }
+
+.toasts {
+  position: fixed; bottom: 24px; right: 24px;
+  display: flex; flex-direction: column; gap: 8px; z-index: 900;
+}
+.toast {
+  background: var(--ink); color: var(--bg); padding: 10px 18px;
+  border-radius: 6px; font-size: 0.72rem; letter-spacing: 0.06em;
+  animation: toastIn 0.25s ease, toastOut 0.3s ease 2.7s forwards;
+  max-width: 260px;
+}
+@keyframes toastIn { from{transform:translateY(10px);opacity:0} to{transform:translateY(0);opacity:1} }
+@keyframes toastOut { to{transform:translateY(10px);opacity:0} }
+
+@media(max-width:640px){
+  header,#screen-solo,#screen-lb,#screen-multi,.nav-bar{padding-left:20px;padding-right:20px;}
+  .live-stat-val{font-size:1.6rem;}
+  #text-display{font-size:1rem;line-height:2;}
+  .results-grid{grid-template-columns:repeat(2,1fr);}
+  .podium-row{grid-template-columns:36px 1fr 60px 60px;}
+  .podium-time{display:none;}
+}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo">1800<span>-TYPER</span></div>
+  <div class="header-right">
+    <div class="tag">Built with <strong>Claude AI</strong></div>
+  </div>
+</header>
+
+<div class="nav-bar">
+  <button class="nav-tab active" onclick="switchTab('solo')">Solo Test</button>
+  <button class="nav-tab" onclick="switchTab('multi')">Multiplayer</button>
+  <button class="nav-tab" onclick="switchTab('lb')">Leaderboard</button>
+</div>
+
+<!-- ========== SOLO ========== -->
+<div id="screen-solo" class="screen active">
+  <div class="options-row">
+    <span class="opt-label">Time</span>
+    <button class="opt-btn active" onclick="setDuration(15,this)">15s</button>
+    <button class="opt-btn" onclick="setDuration(30,this)">30s</button>
+    <button class="opt-btn" onclick="setDuration(60,this)">60s</button>
+    <button class="opt-btn" onclick="setDuration(120,this)">2min</button>
+    <div class="opt-sep"></div>
+    <span class="opt-label">Mode</span>
+    <button class="opt-btn active" onclick="setWordMode('words',this)">Words</button>
+    <button class="opt-btn" onclick="setWordMode('quote',this)">Quote</button>
+    <button class="opt-btn" onclick="setWordMode('code',this)">Code</button>
+  </div>
+
+  <div class="live-stats">
+    <div class="live-stat">
+      <div class="live-stat-val accent" id="stat-wpm">—</div>
+      <div class="live-stat-label">WPM</div>
+    </div>
+    <div class="live-stat">
+      <div class="live-stat-val" id="stat-acc">—</div>
+      <div class="live-stat-label">Accuracy</div>
+    </div>
+    <div class="live-stat">
+      <div class="live-stat-val" id="stat-chars">0</div>
+      <div class="live-stat-label">Chars</div>
+    </div>
+    <div class="live-stat">
+      <div class="live-stat-val" id="stat-errors">0</div>
+      <div class="live-stat-label">Errors</div>
+    </div>
+    <div class="timer-track">
+      <div class="timer-nums"><span>TIME</span><span id="timer-val">—</span></div>
+      <div class="timer-bg"><div class="timer-fill" id="timer-fill"></div></div>
+    </div>
+  </div>
+
+  <div class="progress-row" id="progress-row"></div>
+
+  <div class="typing-card" id="typing-card" onclick="focusInput()">
+    <div id="text-display"></div>
+    <input type="text" id="type-input" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" />
+    <div class="focus-hint" id="focus-hint">
+      <div class="focus-key">Click here or press any key to start</div>
+      <span style="font-size:0.6rem;letter-spacing:0.1em;text-transform:uppercase;color:var(--ink-ghost)">ready when you are</span>
+    </div>
+  </div>
+
+  <div class="controls">
+    <button class="btn-restart" onclick="restartTest()">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/>
+      </svg>
+      Restart
+    </button>
+    <span class="hint-text">Tab + Enter to restart quickly</span>
+  </div>
+
+  <div class="history-section" id="history-section" style="display:none">
+    <div class="section-label">Session History</div>
+    <table class="history-table">
+      <thead><tr><th>#</th><th>WPM</th><th>Raw</th><th>Accuracy</th><th>Chars</th><th>Errors</th><th>Duration</th></tr></thead>
+      <tbody id="history-body"></tbody>
+    </table>
+  </div>
+</div>
+
+<!-- ========== MULTIPLAYER ========== -->
+<div id="screen-multi" class="screen">
+
+  <!-- Entry view -->
+  <div id="multi-entry" class="multi-view active">
+    <div class="multi-lobby-entry">
+      <h2>Race Your <span>Team</span></h2>
+
+      <div class="lobby-form">
+        <div class="lobby-form-title">Your Name</div>
+        <input class="lobby-input" id="player-name-input" placeholder="Enter your name..." maxlength="20" />
+
+        <div class="lobby-form-title" style="margin-top:4px">Create a Room</div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap">
+          <button class="opt-btn active" id="mode-btn-words" onclick="setRaceMode('words',this)">Words</button>
+          <button class="opt-btn" id="mode-btn-quote" onclick="setRaceMode('quote',this)">Quote</button>
+        </div>
+        <button class="btn-lobby primary" onclick="createLobby()">Create Room</button>
+
+        <div class="lobby-divider">or join existing</div>
+
+        <input class="lobby-input code-input" id="join-code-input" placeholder="ROOM CODE" maxlength="4" />
+        <button class="btn-lobby outline" onclick="joinLobby()">Join Room</button>
+        <div class="lobby-error" id="lobby-error"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Waiting room -->
+  <div id="multi-waiting" class="multi-view">
+    <div class="waiting-room">
+      <div class="waiting-header">
+        <div class="room-code-display">
+          <div class="room-code-label">Room Code — Share this with your team</div>
+          <div class="room-code" id="room-code-display" onclick="copyRoomCode()" title="Click to copy">????</div>
+          <div class="room-code-hint">click to copy · others enter this code to join</div>
+        </div>
+        <div class="waiting-actions">
+          <button class="btn-sm primary" id="start-race-btn" onclick="startRace()">Start Race</button>
+          <button class="btn-sm ghost" onclick="leaveRoom()">Leave</button>
+        </div>
+      </div>
+      <div class="player-list">
+        <div class="player-list-label">Players in Room — <span id="player-count">0</span>/8</div>
+        <div id="player-list-rows"></div>
+      </div>
+      <div class="waiting-hint" id="waiting-hint">Waiting for host to start the race...</div>
+    </div>
+  </div>
+
+  <!-- Race in progress -->
+  <div id="multi-racing" class="multi-view">
+    <div class="race-view">
+      <div class="race-leaderboard">
+        <div class="race-lb-label">Live Race — <span id="race-timer-display">—</span></div>
+        <div id="racers-list"></div>
+      </div>
+
+      <div class="progress-row" id="race-progress-row"></div>
+
+      <div class="typing-card" id="race-typing-card" onclick="focusRaceInput()">
+        <div id="race-text-display"></div>
+        <input type="text" id="race-type-input" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"/>
+        <div class="focus-hint" id="race-focus-hint">
+          <div class="focus-key">Click to focus</div>
+        </div>
+      </div>
+
+      <div class="controls">
+        <button class="btn-restart" onclick="leaveRoom()">
+          Leave Race
+        </button>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<!-- ========== LEADERBOARD ========== -->
+<div id="screen-lb" class="screen">
+  <div class="lb-header-row">
+    <div class="lb-title">Global <span>Leaderboard</span></div>
+    <button class="lb-refresh-btn" onclick="loadLeaderboard()">↻ Refresh</button>
+  </div>
+  <div class="lb-filter-row">
+    <button class="opt-btn active" onclick="filterLb('all',this)">All Time</button>
+    <button class="opt-btn" onclick="filterLb('today',this)">Today</button>
+  </div>
+  <div id="lb-content"><div class="lb-loading">Loading...</div></div>
+</div>
+
+<!-- ========== RESULTS OVERLAY (solo) ========== -->
+<div id="results-overlay" class="hidden">
+  <div class="results-head">Test <span>Complete</span></div>
+  <div class="results-sub">Here's how you did</div>
+  <div class="results-grid">
+    <div class="result-cell"><div class="result-val" id="r-wpm">—</div><div class="result-lbl">WPM</div></div>
+    <div class="result-cell"><div class="result-val" id="r-raw">—</div><div class="result-lbl">Raw WPM</div></div>
+    <div class="result-cell"><div class="result-val" id="r-acc">—</div><div class="result-lbl">Accuracy</div></div>
+    <div class="result-cell"><div class="result-val" id="r-errors">—</div><div class="result-lbl">Errors</div></div>
+  </div>
+  <div class="wpm-grade" id="r-grade"></div>
+  <div class="lb-prompt">
+    <input class="lb-input" id="lb-name-input" placeholder="Your name..." maxlength="20" />
+    <button class="btn-action primary" onclick="submitToLeaderboard()">Submit Score</button>
+  </div>
+  <div class="results-actions">
+    <button class="btn-action primary" onclick="closeResults();restartTest()">Try Again</button>
+    <button class="btn-action ghost" onclick="closeResults()">View Stats</button>
+  </div>
+</div>
+
+<!-- ========== COUNTDOWN ========== -->
+<div class="countdown-overlay hidden" id="countdown-overlay">
+  <div class="countdown-num" id="countdown-num">3</div>
+  <div class="countdown-label">Get Ready...</div>
+</div>
+
+<!-- ========== RACE RESULTS ========== -->
+<div class="race-results-overlay hidden" id="race-results-overlay">
+  <div class="race-results-head">Race <span>Over</span></div>
+  <div class="race-results-sub">Final Standings</div>
+  <div class="race-podium" id="race-podium"></div>
+  <div class="results-actions">
+    <button class="btn-action primary" id="race-again-btn" onclick="requestRematch()" style="display:none">Play Again</button>
+    <button class="btn-action ghost" onclick="leaveRoom()">Leave Room</button>
+  </div>
+</div>
+
+<!-- Toasts -->
+<div class="toasts" id="toasts"></div>
+
+<script>
+// ——— CONFIG — UPDATE THIS AFTER DEPLOYING YOUR SERVER ———
+const SERVER_URL = window.location.hostname === 'localhost'
+  ? 'http://localhost:3001'
+  : 'https://YOUR-RAILWAY-URL.railway.app'; // <-- replace after deploy
+
+// ——— Word banks ———
+const WORD_BANK = `the be to of and a in that have it for not on with he as you do at this but his by from they we say her she or an will my one all would there their what so up out if about who get which go me when make can like time no just him know take people into year your good some could them see other than then now look only come its over think also back after use two how our work first well way even new want because any these give day most us`.split(' ');
+const QUOTES = [
+  "The only way to do great work is to love what you do. If you haven't found it yet, keep looking. Don't settle.",
+  "In the middle of every difficulty lies opportunity. The mind that opens to a new idea never returns to its original size.",
+  "Success is not final, failure is not fatal; it is the courage to continue that counts. Our greatest glory is not in never falling, but in rising every time we fall.",
+  "The future belongs to those who believe in the beauty of their dreams. Do not wait to strike till the iron is hot, but make it hot by striking.",
+];
+const CODE_SNIPPETS = [
+  `function debounce(fn, delay) { let timer; return function(...args) { clearTimeout(timer); timer = setTimeout(() => fn.apply(this, args), delay); }; }`,
+  `const fetchData = async (url) => { try { const res = await fetch(url); const data = await res.json(); return data; } catch (err) { console.error(err); } };`,
+];
+
+// ——— Solo state ———
+let duration = 15, wordMode = 'words';
+let testText = '', chars = [], currentIdx = 0, errors = 0, totalTyped = 0;
+let started = false, finished = false, timerInterval = null, timeLeft = duration, startTime = null;
+let history = [], tabPressed = false;
+let pendingResult = null;
+
+// ——— Socket ———
+let socket = null;
+let myPlayerId = null, currentRoom = null, isHost = false;
+let raceText = '', raceChars = [], raceIdx = 0, raceErrors = 0, raceTotalTyped = 0;
+let raceStarted = false, raceProgressInterval = null, raceTimerInterval = null, raceStartTime = null;
+
+// ——— Tab switching ———
+function switchTab(tab) {
+  document.querySelectorAll('.nav-tab').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  event.target.classList.add('active');
+  document.getElementById('screen-' + tab).classList.add('active');
+  if (tab === 'lb') loadLeaderboard();
+}
+
+// ——— Toast ———
+function toast(msg) {
+  const el = document.createElement('div');
+  el.className = 'toast'; el.textContent = msg;
+  document.getElementById('toasts').appendChild(el);
+  setTimeout(() => el.remove(), 3100);
+}
+
+// ——— SOLO TEST ———
+function genText() {
+  if (wordMode === 'quote') return QUOTES[Math.floor(Math.random() * QUOTES.length)];
+  if (wordMode === 'code') return CODE_SNIPPETS[Math.floor(Math.random() * CODE_SNIPPETS.length)];
+  const words = [];
+  for (let i = 0; i < Math.max(80, duration * 3); i++)
+    words.push(WORD_BANK[Math.floor(Math.random() * WORD_BANK.length)]);
+  return words.join(' ');
+}
+
+function buildDisplay(text) {
+  testText = text; chars = [];
+  const d = document.getElementById('text-display');
+  d.innerHTML = '';
+  for (let i = 0; i < text.length; i++) {
+    const s = document.createElement('span');
+    s.className = 'char pending' + (i === 0 ? ' cursor' : '');
+    s.textContent = text[i] === ' ' ? '\u00a0' : text[i];
+    s.dataset.char = text[i];
+    d.appendChild(s); chars.push(s);
+  }
+  buildDots(text, 'progress-row');
+}
+
+function buildDots(text, rowId) {
+  const row = document.getElementById(rowId);
+  row.innerHTML = '';
+  text.split(' ').forEach((_, i) => {
+    const dot = document.createElement('div');
+    dot.className = 'word-dot' + (i === 0 ? ' current' : '');
+    dot.id = rowId + '-dot-' + i;
+    row.appendChild(dot);
+  });
+}
+
+function updateDots(text, rowId, idx) {
+  const wordsDone = text.slice(0, idx).split(' ').length - 1;
+  text.split(' ').forEach((_, i) => {
+    const dot = document.getElementById(rowId + '-dot-' + i);
+    if (!dot) return;
+    dot.className = 'word-dot' + (i < wordsDone ? ' done' : i === wordsDone ? ' current' : '');
+  });
+}
+
+function restartTest() {
+  clearInterval(timerInterval); started = false; finished = false;
+  currentIdx = 0; errors = 0; totalTyped = 0; timeLeft = duration; startTime = null;
+  document.getElementById('type-input').value = '';
+  document.getElementById('stat-wpm').textContent = '—';
+  document.getElementById('stat-acc').textContent = '—';
+  document.getElementById('stat-chars').textContent = '0';
+  document.getElementById('stat-errors').textContent = '0';
+  document.getElementById('timer-val').textContent = duration + 's';
+  document.getElementById('timer-fill').style.width = '100%';
+  buildDisplay(genText());
+  document.getElementById('focus-hint').classList.remove('hidden');
+  document.getElementById('results-overlay').classList.add('hidden');
+}
+
+function focusInput() {
+  document.getElementById('type-input').focus();
+  document.getElementById('focus-hint').classList.add('hidden');
+}
+
+document.getElementById('type-input').addEventListener('keydown', (e) => {
+  if (e.key === 'Tab') { tabPressed = true; e.preventDefault(); return; }
+  if (e.key === 'Enter' && tabPressed) { restartTest(); return; }
+  tabPressed = false;
+  if (finished) return;
+
+  if (!started) {
+    started = true; startTime = Date.now();
+    document.getElementById('focus-hint').classList.add('hidden');
+    runTimer();
+  }
+  if (e.key === 'Backspace') {
+    e.preventDefault();
+    if (currentIdx > 0) {
+      currentIdx--;
+      chars[currentIdx].className = 'char pending cursor';
+      if (chars[currentIdx + 1]) chars[currentIdx + 1].classList.remove('cursor');
+    }
+    updateLiveStats(); return;
+  }
+  if (e.key.length !== 1) return;
+  e.preventDefault();
+  if (currentIdx >= chars.length) return;
+
+  const expected = chars[currentIdx].dataset.char;
+  chars[currentIdx].classList.remove('cursor');
+  if (e.key === expected) { chars[currentIdx].className = 'char correct'; }
+  else { chars[currentIdx].className = 'char wrong'; errors++; shakeCard('typing-card'); }
+  totalTyped++; currentIdx++;
+  if (currentIdx < chars.length) chars[currentIdx].classList.add('cursor');
+  updateDots(testText, 'progress-row', currentIdx);
+  updateLiveStats();
+  if (currentIdx >= chars.length) endTest();
+});
+
+document.addEventListener('keydown', (e) => {
+  if (!started && !finished && e.key.length === 1) {
+    const hint = document.getElementById('focus-hint');
+    if (!hint.classList.contains('hidden') && document.getElementById('screen-solo').classList.contains('active')) {
+      focusInput();
+      document.getElementById('type-input').dispatchEvent(new KeyboardEvent('keydown', {key: e.key, bubbles: true}));
+    }
+  }
+});
+
+function shakeCard(id) {
+  const c = document.getElementById(id);
+  c.classList.remove('err'); void c.offsetWidth; c.classList.add('err');
+}
+
+function runTimer() {
+  document.getElementById('timer-val').textContent = timeLeft + 's';
+  timerInterval = setInterval(() => {
+    timeLeft--;
+    document.getElementById('timer-val').textContent = timeLeft + 's';
+    document.getElementById('timer-fill').style.width = (timeLeft / duration * 100) + '%';
+    updateLiveStats();
+    if (timeLeft <= 0) endTest();
+  }, 1000);
+}
+
+function updateLiveStats() {
+  const el = (Date.now() - startTime) / 1000 / 60;
+  const correct = chars.filter(c => c.className.includes('correct')).length;
+  const wpm = el > 0 ? Math.round((correct / 5) / el) : 0;
+  const rawWpm = el > 0 ? Math.round((totalTyped / 5) / el) : 0;
+  const acc = totalTyped > 0 ? Math.round((correct / totalTyped) * 100) : 100;
+  document.getElementById('stat-wpm').textContent = started ? wpm : '—';
+  document.getElementById('stat-acc').textContent = started ? acc + '%' : '—';
+  document.getElementById('stat-chars').textContent = correct;
+  document.getElementById('stat-errors').textContent = errors;
+}
+
+function endTest() {
+  clearInterval(timerInterval); finished = true;
+  const el = (Date.now() - startTime) / 1000 / 60;
+  const correct = chars.filter(c => c.className.includes('correct')).length;
+  const wpm = Math.round((correct / 5) / el);
+  const rawWpm = Math.round((totalTyped / 5) / el);
+  const acc = totalTyped > 0 ? Math.round((correct / totalTyped) * 100) : 100;
+
+  pendingResult = { wpm, rawWpm, acc, errors, chars: correct, duration, mode: wordMode };
+
+  let grade = wpm >= 120 ? '🔥 Exceptional — Top 1% typist' :
+              wpm >= 90 ? '⚡ Advanced — Well above average' :
+              wpm >= 60 ? '✓ Proficient — Above average' :
+              wpm >= 40 ? '→ Average — Room to improve' : '↗ Keep practicing';
+
+  document.getElementById('r-wpm').textContent = wpm;
+  document.getElementById('r-raw').textContent = rawWpm;
+  document.getElementById('r-acc').textContent = acc + '%';
+  document.getElementById('r-errors').textContent = errors;
+  document.getElementById('r-wpm').className = 'result-val ' + (wpm >= 80 ? 'good' : wpm >= 50 ? 'warn' : 'bad');
+  document.getElementById('r-acc').className = 'result-val ' + (acc >= 95 ? 'good' : acc >= 85 ? 'warn' : 'bad');
+  document.getElementById('r-grade').textContent = grade;
+
+  const run = { wpm, rawWpm, acc, errors, chars: correct, duration };
+  history.unshift(run); renderHistory();
+
+  setTimeout(() => document.getElementById('results-overlay').classList.remove('hidden'), 300);
+}
+
+function closeResults() { document.getElementById('results-overlay').classList.add('hidden'); }
+
+function setDuration(d, btn) {
+  if (started && !finished) return;
+  duration = d;
+  document.querySelectorAll('#screen-solo .opt-btn').forEach(b => {
+    if (['15s','30s','60s','2min'].includes(b.textContent)) b.classList.remove('active');
+  });
+  btn.classList.add('active'); restartTest();
+}
+
+function setWordMode(mode, btn) {
+  if (started && !finished) return;
+  wordMode = mode;
+  document.querySelectorAll('#screen-solo .opt-btn').forEach(b => {
+    if (['Words','Quote','Code'].includes(b.textContent)) b.classList.remove('active');
+  });
+  btn.classList.add('active'); restartTest();
+}
+
+function renderHistory() {
+  if (history.length === 0) return;
+  document.getElementById('history-section').style.display = 'block';
+  const tbody = document.getElementById('history-body');
+  tbody.innerHTML = '';
+  const best = Math.max(...history.map(h => h.wpm));
+  history.forEach((h, i) => {
+    const tr = document.createElement('tr');
+    if (h.wpm === best && history.length > 1) tr.className = 'best-row';
+    tr.innerHTML = `<td>${i+1}</td><td>${h.wpm}</td><td>${h.rawWpm}</td><td>${h.acc}%</td><td>${h.chars}</td><td>${h.errors}</td><td>${h.duration}s</td>`;
+    tbody.appendChild(tr);
+  });
+}
+
+// ——— LEADERBOARD ———
+let lbData = [], lbFilter = 'all';
+
+async function loadLeaderboard() {
+  document.getElementById('lb-content').innerHTML = '<div class="lb-loading">Loading...</div>';
+  try {
+    const res = await fetch(SERVER_URL + '/leaderboard');
+    if (!res.ok) throw new Error();
+    lbData = await res.json();
+    renderLeaderboard();
+  } catch {
+    document.getElementById('lb-content').innerHTML = '<div class="lb-empty">Could not load leaderboard — make sure the server is running.</div>';
+  }
+}
+
+function filterLb(f, btn) {
+  lbFilter = f;
+  document.querySelectorAll('#screen-lb .opt-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  renderLeaderboard();
+}
+
+function renderLeaderboard() {
+  let data = lbData;
+  if (lbFilter === 'today') {
+    const today = new Date(); today.setHours(0,0,0,0);
+    data = data.filter(e => e.timestamp >= today.getTime());
+  }
+
+  if (data.length === 0) {
+    document.getElementById('lb-content').innerHTML = '<div class="lb-empty">No entries yet — be the first!</div>';
+    return;
+  }
+
+  const medals = ['🥇','🥈','🥉'];
+  let html = `<table class="lb-table">
+    <thead><tr>
+      <th class="rank-col">#</th>
+      <th>Name</th>
+      <th>WPM</th>
+      <th>Raw</th>
+      <th class="acc-col">Accuracy</th>
+      <th>Errors</th>
+      <th>Mode</th>
+      <th>Date</th>
+    </tr></thead><tbody>`;
+
+  data.forEach((e, i) => {
+    const d = new Date(e.timestamp);
+    const dateStr = d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+    html += `<tr>
+      <td class="rank-col">${medals[i] || (i+1)}</td>
+      <td class="name-col">${e.name}</td>
+      <td class="wpm-col">${e.wpm}</td>
+      <td>${e.rawWpm || '—'}</td>
+      <td class="acc-col">${e.acc}%</td>
+      <td>${e.errors}</td>
+      <td>${e.mode || 'words'}</td>
+      <td style="color:var(--ink-dim);font-size:0.7rem">${dateStr}</td>
+    </tr>`;
+  });
+
+  html += '</tbody></table>';
+  document.getElementById('lb-content').innerHTML = html;
+}
+
+async function submitToLeaderboard() {
+  if (!pendingResult) return;
+  const name = document.getElementById('lb-name-input').value.trim();
+  if (!name) { document.getElementById('lb-name-input').focus(); return; }
+
+  try {
+    const res = await fetch(SERVER_URL + '/leaderboard', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ...pendingResult, name })
+    });
+    const data = await res.json();
+    if (data.rank) {
+      toast(`Score submitted! You ranked #${data.rank} 🎉`);
+      lbData = data.leaderboard;
+      pendingResult = null;
+    }
+  } catch {
+    toast('Could not submit — server may be offline');
+  }
+}
+
+// ——— MULTIPLAYER ———
+let raceMode = 'words';
+
+function setRaceMode(mode, btn) {
+  raceMode = mode;
+  document.querySelectorAll('#multi-entry .opt-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+}
+
+function getSocket() {
+  if (socket && socket.connected) return socket;
+  socket = io(SERVER_URL, { transports: ['websocket', 'polling'] });
+
+  socket.on('lobby_error', (msg) => {
+    document.getElementById('lobby-error').textContent = msg;
+  });
+
+  socket.on('lobby_joined', ({ code, playerId }) => {
+    myPlayerId = playerId;
+    currentRoom = code;
+    showMultiView('multi-waiting');
+    document.getElementById('room-code-display').textContent = code;
+    document.getElementById('lobby-error').textContent = '';
+  });
+
+  socket.on('lobby_update', (state) => {
+    currentRoom = state.code;
+    isHost = state.host === myPlayerId;
+    renderWaitingRoom(state);
+  });
+
+  socket.on('race_text', ({ text }) => {
+    raceText = text;
+    buildRaceDisplay(text);
+  });
+
+  socket.on('countdown', (n) => {
+    const ov = document.getElementById('countdown-overlay');
+    ov.classList.remove('hidden');
+    const numEl = document.getElementById('countdown-num');
+    numEl.textContent = n > 0 ? n : 'GO!';
+    numEl.style.animation = 'none'; void numEl.offsetWidth; numEl.style.animation = '';
+    if (n === 0) setTimeout(() => ov.classList.add('hidden'), 600);
+  });
+
+  socket.on('race_start', ({ startedAt }) => {
+    raceStartTime = startedAt;
+    showMultiView('multi-racing');
+    startRaceTimer();
+    focusRaceInput();
+    raceIdx = 0; raceErrors = 0; raceTotalTyped = 0; raceStarted = true;
+    document.getElementById('race-focus-hint').classList.add('hidden');
+    startProgressBroadcast();
+  });
+
+  socket.on('player_progress', ({ playerId, progress, wpm }) => {
+    updateRacerBar(playerId, progress, wpm, false);
+  });
+
+  socket.on('player_finished', ({ playerId, name, rank, wpm }) => {
+    updateRacerBar(playerId, 100, wpm, true);
+    if (playerId !== myPlayerId) toast(`${name} finished! #${rank} — ${wpm} WPM`);
+  });
+
+  socket.on('race_over', ({ players }) => {
+    clearInterval(raceProgressInterval);
+    clearInterval(raceTimerInterval);
+    showRaceResults(players);
+  });
+
+  socket.on('disconnect', () => {
+    toast('Disconnected from server');
+    showMultiView('multi-entry');
+  });
+
+  return socket;
+}
+
+function createLobby() {
+  const name = document.getElementById('player-name-input').value.trim() || 'Anonymous';
+  const s = getSocket();
+  s.emit('create_lobby', { name, mode: raceMode });
+}
+
+function joinLobby() {
+  const name = document.getElementById('player-name-input').value.trim() || 'Anonymous';
+  const code = document.getElementById('join-code-input').value.trim().toUpperCase();
+  if (!code) { document.getElementById('lobby-error').textContent = 'Enter a room code'; return; }
+  const s = getSocket();
+  s.emit('join_lobby', { code, name });
+}
+
+function showMultiView(id) {
+  document.querySelectorAll('.multi-view').forEach(v => v.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+}
+
+function renderWaitingRoom(state) {
+  document.getElementById('player-count').textContent = state.players.length;
+  const rows = document.getElementById('player-list-rows');
+  rows.innerHTML = '';
+  state.players.forEach(p => {
+    const row = document.createElement('div');
+    row.className = 'player-row';
+    let badges = '';
+    if (p.id === state.host) badges += '<span class="player-badge host">Host</span>';
+    if (p.id === myPlayerId) badges += '<span class="player-badge you">You</span>';
+    row.innerHTML = `<div class="player-name">${p.name} ${badges}</div>`;
+    rows.appendChild(row);
+  });
+
+  const startBtn = document.getElementById('start-race-btn');
+  startBtn.style.display = isHost ? '' : 'none';
+  document.getElementById('waiting-hint').textContent = isHost
+    ? (state.players.length < 2 ? 'Waiting for at least one more player...' : 'Ready! Start the race when everyone is in.')
+    : 'Waiting for host to start the race...';
+
+  // Init racers list
+  const racersList = document.getElementById('racers-list');
+  racersList.innerHTML = '';
+  state.players.forEach(p => {
+    const row = document.createElement('div');
+    row.className = 'racer-row';
+    row.id = 'racer-' + p.id;
+    row.innerHTML = `
+      <div class="racer-name ${p.id === myPlayerId ? 'you-racer' : ''}">${p.name}</div>
+      <div class="racer-bar-bg"><div class="racer-bar ${p.id === myPlayerId ? 'you-bar' : ''}" style="width:0%"></div></div>
+      <div class="racer-wpm" id="racer-wpm-${p.id}">0 wpm</div>
+    `;
+    racersList.appendChild(row);
+  });
+}
+
+function startRace() {
+  if (!isHost) return;
+  socket.emit('start_race', { code: currentRoom });
+}
+
+function startRaceTimer() {
+  raceTimerInterval = setInterval(() => {
+    const elapsed = Math.floor((Date.now() - raceStartTime) / 1000);
+    const m = Math.floor(elapsed / 60);
+    const s = elapsed % 60;
+    document.getElementById('race-timer-display').textContent =
+      m > 0 ? `${m}m ${s}s elapsed` : `${s}s elapsed`;
+  }, 1000);
+}
+
+function updateRacerBar(playerId, progress, wpm, done) {
+  const row = document.getElementById('racer-' + playerId);
+  if (!row) return;
+  const bar = row.querySelector('.racer-bar');
+  const wpmEl = document.getElementById('racer-wpm-' + playerId);
+  if (bar) { bar.style.width = progress + '%'; if (done) bar.classList.add('done-bar'); }
+  if (wpmEl) wpmEl.textContent = wpm + ' wpm';
+}
+
+// Race typing
+function buildRaceDisplay(text) {
+  raceChars = [];
+  const d = document.getElementById('race-text-display');
+  d.innerHTML = '';
+  for (let i = 0; i < text.length; i++) {
+    const s = document.createElement('span');
+    s.className = 'char pending' + (i === 0 ? ' cursor' : '');
+    s.textContent = text[i] === ' ' ? '\u00a0' : text[i];
+    s.dataset.char = text[i];
+    d.appendChild(s); raceChars.push(s);
+  }
+  buildDots(text, 'race-progress-row');
+}
+
+function focusRaceInput() {
+  document.getElementById('race-type-input').focus();
+  document.getElementById('race-focus-hint').classList.add('hidden');
+}
+
+document.getElementById('race-type-input').addEventListener('keydown', (e) => {
+  if (!raceStarted) return;
+  if (e.key === 'Backspace') {
+    e.preventDefault();
+    if (raceIdx > 0) {
+      raceIdx--;
+      raceChars[raceIdx].className = 'char pending cursor';
+      if (raceChars[raceIdx + 1]) raceChars[raceIdx + 1].classList.remove('cursor');
+    }
+    return;
+  }
+  if (e.key.length !== 1) return;
+  e.preventDefault();
+  if (raceIdx >= raceChars.length) return;
+
+  const expected = raceChars[raceIdx].dataset.char;
+  raceChars[raceIdx].classList.remove('cursor');
+  if (e.key === expected) { raceChars[raceIdx].className = 'char correct'; }
+  else { raceChars[raceIdx].className = 'char wrong'; raceErrors++; shakeCard('race-typing-card'); }
+  raceTotalTyped++; raceIdx++;
+  if (raceIdx < raceChars.length) raceChars[raceIdx].classList.add('cursor');
+  updateDots(raceText, 'race-progress-row', raceIdx);
+
+  // Send progress
+  const progress = Math.round((raceIdx / raceChars.length) * 100);
+  const elapsed = (Date.now() - raceStartTime) / 1000 / 60;
+  const correct = raceChars.filter(c => c.className.includes('correct')).length;
+  const wpm = elapsed > 0 ? Math.round((correct / 5) / elapsed) : 0;
+  updateRacerBar(myPlayerId, progress, wpm, false);
+
+  if (raceIdx >= raceChars.length) {
+    raceStarted = false;
+    clearInterval(raceProgressInterval);
+    const finalElapsed = (Date.now() - raceStartTime) / 1000 / 60;
+    const finalCorrect = raceChars.filter(c => c.className.includes('correct')).length;
+    const finalWpm = Math.round((finalCorrect / 5) / finalElapsed);
+    const finalRaw = Math.round((raceTotalTyped / 5) / finalElapsed);
+    const finalAcc = raceTotalTyped > 0 ? Math.round((finalCorrect / raceTotalTyped) * 100) : 100;
+    socket.emit('race_finished', { code: currentRoom, wpm: finalWpm, rawWpm: finalRaw, acc: finalAcc, errors: raceErrors });
+    updateRacerBar(myPlayerId, 100, finalWpm, true);
+  }
+});
+
+function startProgressBroadcast() {
+  raceProgressInterval = setInterval(() => {
+    if (!raceStarted || !socket) return;
+    const elapsed = (Date.now() - raceStartTime) / 1000 / 60;
+    const correct = raceChars.filter(c => c.className.includes('correct')).length;
+    const wpm = elapsed > 0 ? Math.round((correct / 5) / elapsed) : 0;
+    const progress = Math.round((raceIdx / raceChars.length) * 100);
+    socket.emit('progress_update', { code: currentRoom, progress, wpm });
+  }, 800);
+}
+
+function showRaceResults(players) {
+  const sorted = [...players].sort((a, b) => (a.rank || 999) - (b.rank || 999));
+  const medals = ['🥇', '🥈', '🥉'];
+  let html = '';
+  sorted.forEach((p, i) => {
+    const isYou = p.id === myPlayerId;
+    const t = p.finishTime ? (p.finishTime / 1000).toFixed(1) + 's' : 'DNF';
+    html += `<div class="podium-row ${isYou ? 'you-podium' : ''}">
+      <div class="podium-rank ${i === 0 ? 'gold' : ''}">${medals[i] || (i+1)}</div>
+      <div class="podium-name">${p.name}${isYou ? ' (you)' : ''}</div>
+      <div class="podium-wpm">${p.wpm} wpm</div>
+      <div class="podium-acc">${p.rank ? '✓' : '—'}</div>
+      <div class="podium-time">${t}</div>
+    </div>`;
+  });
+  document.getElementById('race-podium').innerHTML = html;
+  document.getElementById('race-again-btn').style.display = isHost ? '' : 'none';
+  document.getElementById('race-results-overlay').classList.remove('hidden');
+}
+
+function requestRematch() {
+  document.getElementById('race-results-overlay').classList.add('hidden');
+  if (socket && isHost) socket.emit('return_to_lobby', { code: currentRoom });
+  showMultiView('multi-waiting');
+}
+
+function leaveRoom() {
+  raceStarted = false;
+  clearInterval(raceProgressInterval);
+  clearInterval(raceTimerInterval);
+  if (socket) socket.disconnect();
+  socket = null; myPlayerId = null; currentRoom = null; isHost = false;
+  document.getElementById('race-results-overlay').classList.add('hidden');
+  document.getElementById('countdown-overlay').classList.add('hidden');
+  showMultiView('multi-entry');
+}
+
+function copyRoomCode() {
+  const code = document.getElementById('room-code-display').textContent;
+  navigator.clipboard.writeText(code).then(() => toast('Room code copied: ' + code));
+}
+
+// ——— Init ———
+restartTest();
+document.getElementById('timer-val').textContent = duration + 's';
+</script>
+</body>
+</html>
