@@ -71,7 +71,30 @@ app.post('/leaderboard', (req, res) => {
 // ——— Lobby system ———
 const lobbies = {}; // code -> lobby object
 
-const WORD_BANK = `the be to of and a in that have it for not on with he as you do at this but his by from they we say her she or an will my one all would there their what so up out if about who get which go me when make can like time no just him know take people into year your good some could them see other than then now look only come its over think also back after use two how our work first well way even new want because any these give day most us`.split(' ');
+const WORD_BANK = `about above across after again ahead almost along always among anger angle another answer apart apply argue aside 
+asked basic batch before begin below bench beside between beyond blame blank blend blind block blood blown 
+board bonus boost brave break brief bring broad broke build burst 
+cabin carry catch cause chair chain chance change charm chart chase check chose chunk circle claim class clean clear climb close cloud coach color comes 
+could count cover crack craft crash crazy cream crime cross crowd cruel crush cubic curve cycle daily dance debug delay delta depth design detail digital dinner direct 
+doing doubt draft drain drama drawn dream dress drink drive drove 
+early eight elite empty ended enjoy enter error event every exact exist extra 
+faint faith falls false feast fetch field fight final fixed flame flash fleet flesh float flood floor fluid focus force forest forge format found frame fresh front fully 
+games giant given glass globe going grand grant grasp great green greet group grown guard guess guest guide guilt 
+handle happy harsh heart heavy hello hence holds honor hours house human humor hurry 
+ideal image imply index inner input inside irony issue 
+joint judge keeps label large laser later laugh layer learn leave legal level light limit lined links local logic loose lower lucky 
+magic major maker march match meant medal merge might minor mixed modal model money month moral moved music 
+named nerve never night noise north noted novel nurse 
+occur often order other ought outer owned 
+panel paper parts patch pause peace phone photo piece pilot place plain plane plant plate plaza point porch power press price pride prime print proof proud proxy pulse punch 
+query queue quiet quote 
+radar raise range rapid ratio reach ready realm refer relay renew repay reset rigid risen rival river robot rocky rolls rough round route ruler 
+scale scene scope score scout sense serve setup seven shake shall shame shape share shift shift shock short shown sight sixth sixty sized skill slash sleep slide slope small smart smell smile smoke solid solve sorry south space spark spend split spoke sport spray squad stack stage stale stand start state stays steel steep stern stick still stone stood store storm story stack strap strip strum stuck study style super surge swift 
+table taken taste teach tense terms thick thing think threw throw tidal title token total touch tough tower track trade train trait trend trial tried truck truly trust truth tumor twist typed 
+under unify union until upset usage 
+valid value verse video vigor viral visit vital voice voter 
+watch water weigh while white whole width witch world worry worse would write wrong 
+young yours`.split(/\s+/).filter(w => w.length >= 4);
 
 const QUOTES = [
   "The only way to do great work is to love what you do. If you haven't found it yet, keep looking. Don't settle.",
@@ -80,11 +103,12 @@ const QUOTES = [
   "The future belongs to those who believe in the beauty of their dreams. Do not wait to strike till the iron is hot, but make it hot by striking.",
 ];
 
-function generateRaceText(mode) {
+function generateRaceText(mode, duration) {
   if (mode === 'quote') {
     return QUOTES[Math.floor(Math.random() * QUOTES.length)];
   }
-  const count = 60;
+  // Enough for ~220 WPM for full duration, minimum 300 words
+  const count = Math.max(300, (duration || 30) * 5);
   const words = [];
   for (let i = 0; i < count; i++) {
     words.push(WORD_BANK[Math.floor(Math.random() * WORD_BANK.length)]);
@@ -188,7 +212,7 @@ io.on('connection', (socket) => {
     if (!lobby || lobby.host !== socket.id) return;
     if (lobby.status !== 'waiting') return;
 
-    lobby.text = generateRaceText(lobby.mode);
+    lobby.text = generateRaceText(lobby.mode, lobby.duration);
     lobby.status = 'countdown';
     lobby.countdown = 3;
     lobby.finishCount = 0;
